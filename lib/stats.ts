@@ -19,6 +19,15 @@ function extractEmojis(text: string): string[] {
 }
 
 export function calculateStats(messages: ParsedMessage[], groupName: string): ChatStats {
+  // Filter out messages where the sender matches the group name (WhatsApp system notifications).
+  // Only do this if there are other real senders — in a 1:1 chat the "group name" may be a person.
+  const groupLower = groupName.toLowerCase()
+  const uniqueSenders = new Set(messages.map((m) => m.sender))
+  const groupNameIsSender = [...uniqueSenders].some((s) => s.toLowerCase() === groupLower)
+  if (groupNameIsSender && uniqueSenders.size > 2) {
+    messages = messages.filter((m) => m.sender.toLowerCase() !== groupLower)
+  }
+
   if (!messages.length) {
     return {
       groupName,

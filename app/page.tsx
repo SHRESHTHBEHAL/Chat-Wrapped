@@ -298,7 +298,8 @@ export default function HomePage() {
               fontWeight: "600",
             }}>
               Open WhatsApp &rarr; Go to Chat Info<br />
-              <span style={{ color: "#FF0055" }}>Export Chat</span> &rarr; Select <span style={{ color: "#FF0055" }}>Without Media</span>
+              <span style={{ color: "#FF0055" }}>Export Chat</span> &rarr; Select <span style={{ color: "#FF0055" }}>Without Media</span><br />
+              <span style={{ color: "#888", fontSize: "12px" }}>Upload the .zip directly or unzip and upload the .txt file</span>
             </p>
           </div>
 

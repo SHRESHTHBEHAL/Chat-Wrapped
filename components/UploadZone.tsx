@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import JSZip from "jszip"
 
 interface UploadZoneProps {
   onFile: (file: File) => void
@@ -11,9 +12,35 @@ export default function UploadZone({ onFile, loading }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  function handleFile(file: File) {
+  async function extractTxtFromZip(file: File): Promise<File | null> {
+    try {
+      const zip = await JSZip.loadAsync(file)
+      // Find the first .txt file in the zip
+      for (const [name, entry] of Object.entries(zip.files)) {
+        if (!entry.dir && name.endsWith(".txt")) {
+          const text = await entry.async("string")
+          return new File([text], name, { type: "text/plain" })
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  async function handleFile(file: File) {
+    if (file.name.endsWith(".zip")) {
+      const txtFile = await extractTxtFromZip(file)
+      if (!txtFile) {
+        alert("No .txt file found inside this zip. Make sure it's a WhatsApp export.")
+        return
+      }
+      onFile(txtFile)
+      return
+    }
+
     if (!file.name.endsWith(".txt")) {
-      alert("Please upload a WhatsApp .txt export file")
+      alert("Please upload a WhatsApp .txt or .zip export file")
       return
     }
     onFile(file)
@@ -47,7 +74,7 @@ export default function UploadZone({ onFile, loading }: UploadZoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept=".txt"
+        accept=".txt,.zip"
         style={{ display: "none" }}
         onChange={(e) => {
           const f = e.target.files?.[0]
@@ -73,7 +100,7 @@ export default function UploadZone({ onFile, loading }: UploadZoneProps) {
         fontWeight: "600",
         marginBottom: "24px",
       }}>
-        TXT FILES ONLY / NO DATA STORED
+        TXT OR ZIP FILE / NO DATA STORED
       </p>
 
       <div className="brutal-button" style={{ display: "inline-block", fontSize: "16px" }}>

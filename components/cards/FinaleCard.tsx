@@ -45,12 +45,12 @@ function Row({
         transition: `opacity 0.4s ease ${delay}ms, transform 0.4s ease ${delay}ms`,
       }}
     >
-      <span style={{ ...SG, fontWeight: 700, fontSize: "7px", letterSpacing: "0.10em", color: "#888888", textTransform: "uppercase", flexShrink: 0 }}>
+      <span style={{ ...SG, fontWeight: 700, fontSize: "7px", letterSpacing: "0.10em", color: "#888888", textTransform: "uppercase", flexShrink: 0, whiteSpace: "nowrap" }}>
         {label}
       </span>
       <span
         className="font-brutal"
-        style={{ fontSize: "11px", color: accent || "#ffffff", maxWidth: "55%", textAlign: "right", lineHeight: 1.1 }}
+        style={{ fontSize: "11px", color: accent || "#ffffff", maxWidth: "58%", textAlign: "right", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}
       >
         {value}
       </span>
@@ -95,7 +95,17 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
     try {
       const { default: html2canvas } = await import("html2canvas")
       if (!cardRef.current) return
-      const canvas = await html2canvas(cardRef.current, { scale: 2, backgroundColor: "#050505", useCORS: true })
+      // Capture the card's parent (CardShell) for a clean full-card screenshot
+      const target = cardRef.current.closest("[data-card-shell]") as HTMLElement || cardRef.current
+      const canvas = await html2canvas(target, {
+        scale: 2,
+        backgroundColor: "#050505",
+        useCORS: true,
+        width: target.offsetWidth,
+        height: target.offsetHeight,
+        scrollX: 0,
+        scrollY: 0,
+      })
       const link = document.createElement("a")
       link.download = `chatwrapped-${groupName.toLowerCase().replace(/\s/g, "-")}.png`
       link.href = canvas.toDataURL("image/png")

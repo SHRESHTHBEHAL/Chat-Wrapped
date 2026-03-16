@@ -13,6 +13,7 @@ export default function CardShell({ children, accentColor = "#FF0055", flash = f
   return (
     <div
       id={id}
+      data-card-shell
       style={{
         position: "relative",
         width: "100%",

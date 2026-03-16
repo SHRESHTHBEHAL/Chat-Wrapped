@@ -167,7 +167,7 @@ export default function WrappedPage() {
   if (loading || !session) {
     return (
       <div className="bg-grid" style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background: "#050505",
         display: "flex",
         flexDirection: "column",
@@ -221,7 +221,7 @@ export default function WrappedPage() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background: "#000000",
         display: "flex",
         alignItems: "center",

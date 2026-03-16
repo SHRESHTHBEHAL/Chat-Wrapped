@@ -7,10 +7,41 @@ import { parseChat, extractGroupName } from "@/lib/parser"
 import { calculateStats } from "@/lib/stats"
 import { ChatStats } from "@/lib/types"
 
+const SG: React.CSSProperties = { fontFamily: "'Space Grotesk', sans-serif" }
+
+/** Deep-rename every occurrence of oldName → newName inside a ChatStats object */
+function applyRenames(stats: ChatStats, groupName: string, nameMap: Record<string, string>): ChatStats {
+  const r = (name: string) => nameMap[name] ?? name
+
+  return {
+    ...stats,
+    groupName,
+    members: stats.members.map(r),
+    topTexter:    { ...stats.topTexter,    name: r(stats.topTexter.name) },
+    leftOnRead:   { ...stats.leftOnRead,   name: r(stats.leftOnRead.name) },
+    mostDramatic: { ...stats.mostDramatic, name: r(stats.mostDramatic.name) },
+    emojiKing:    { ...stats.emojiKing,    name: r(stats.emojiKing.name) },
+    slowTexter:   { ...stats.slowTexter,   name: r(stats.slowTexter.name) },
+    lurker:       { ...stats.lurker,       name: r(stats.lurker.name) },
+    convoStarter: { ...stats.convoStarter, name: r(stats.convoStarter.name) },
+    longestStreak:  { ...stats.longestStreak,  name: r(stats.longestStreak.name) },
+    longestMessage: { ...stats.longestMessage, name: r(stats.longestMessage.name) },
+    morningVsNight: {
+      ...stats.morningVsNight,
+      morningPerson:  { ...stats.morningVsNight.morningPerson,  name: r(stats.morningVsNight.morningPerson.name) },
+      nightOwlPerson: { ...stats.morningVsNight.nightOwlPerson, name: r(stats.morningVsNight.nightOwlPerson.name) },
+    },
+  }
+}
+
 export default function HomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [chat, setChat] = useState<{ file: File; stats: ChatStats } | null>(null)
+
+  // Editable overrides (populated after upload)
+  const [editGroupName, setEditGroupName] = useState("")
+  const [editMembers, setEditMembers] = useState<Record<string, string>>({}) // original -> custom
 
   const processFile = useCallback(async (file: File): Promise<ChatStats | null> => {
     const text = await file.text()
@@ -28,16 +59,45 @@ export default function HomePage() {
 
   const handleFile = useCallback(async (file: File) => {
     const stats = await processFile(file)
-    if (stats) setChat({ file, stats })
+    if (stats) {
+      setChat({ file, stats })
+      setEditGroupName(stats.groupName)
+      // Pre-fill member names as-is
+      const memberMap: Record<string, string> = {}
+      for (const m of stats.members) memberMap[m] = m
+      setEditMembers(memberMap)
+    }
   }, [processFile])
 
   const handleLaunch = useCallback(async () => {
     if (!chat) return
     setLoading(true)
-    sessionStorage.setItem("chatStats", JSON.stringify(chat.stats))
+
+    // Build rename map (only entries that actually changed)
+    const nameMap: Record<string, string> = {}
+    for (const [orig, custom] of Object.entries(editMembers)) {
+      const trimmed = custom.trim()
+      if (trimmed && trimmed !== orig) nameMap[orig] = trimmed
+    }
+
+    const finalStats = applyRenames(chat.stats, editGroupName.trim() || chat.stats.groupName, nameMap)
+    sessionStorage.setItem("chatStats", JSON.stringify(finalStats))
     sessionStorage.removeItem("chatStats2")
     router.push("/wrapped")
-  }, [chat, router])
+  }, [chat, editGroupName, editMembers, router])
+
+  const inputStyle: React.CSSProperties = {
+    ...SG,
+    width: "100%",
+    background: "#111",
+    border: "2px solid #333",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: 600,
+    padding: "8px 12px",
+    outline: "none",
+    transition: "border-color 0.2s",
+  }
 
   return (
     <main className="bg-grid" style={{
@@ -116,8 +176,8 @@ export default function HomePage() {
                 YOUR CHAT
               </div>
               {chat && (
-                <div style={{ background: "#00FF85", color: "#000", fontFamily: "'Space Grotesk', sans-serif", fontWeight: "700", fontSize: "11px", padding: "3px 10px", border: "2px solid #000" }}>
-                  ✓ {chat.stats.groupName.toUpperCase()}
+                <div style={{ background: "#00FF85", color: "#000", ...SG, fontWeight: 700, fontSize: "11px", padding: "3px 10px", border: "2px solid #000" }}>
+                  UPLOADED
                 </div>
               )}
             </div>
@@ -133,6 +193,78 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* ---- Customise Names Section (after upload) ---- */}
+          {chat && (
+            <div style={{
+              background: "#0a0a0a",
+              border: "3px solid #333",
+              padding: "20px",
+              marginBottom: "24px",
+            }}>
+              {/* Section header */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "16px" }}>
+                <div style={{
+                  background: "#FF0055",
+                  color: "#fff",
+                  ...SG,
+                  fontWeight: 700,
+                  fontSize: "10px",
+                  letterSpacing: "0.12em",
+                  padding: "3px 10px",
+                  border: "2px solid #fff",
+                }}>
+                  CUSTOMISE
+                </div>
+                <div style={{ flex: 1, height: "2px", background: "#333" }} />
+              </div>
+
+              {/* Group name */}
+              <div style={{ marginBottom: "16px" }}>
+                <label className="font-brutal" style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "0.15em", marginBottom: "6px" }}>
+                  GROUP NAME
+                </label>
+                <input
+                  type="text"
+                  value={editGroupName}
+                  onChange={(e) => setEditGroupName(e.target.value)}
+                  maxLength={40}
+                  style={inputStyle}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#FF0055" }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#333" }}
+                />
+              </div>
+
+              {/* Member names */}
+              <div>
+                <label className="font-brutal" style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "0.15em", marginBottom: "10px" }}>
+                  MEMBERS
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {chat.stats.members.map((original) => (
+                    <div key={original} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ ...SG, fontWeight: 600, fontSize: "11px", color: "#555", minWidth: "24px", textAlign: "center" }}>
+                        {chat.stats.members.indexOf(original) + 1}.
+                      </div>
+                      <input
+                        type="text"
+                        value={editMembers[original] ?? original}
+                        onChange={(e) => setEditMembers((prev) => ({ ...prev, [original]: e.target.value }))}
+                        maxLength={30}
+                        placeholder={original}
+                        style={inputStyle}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = "#FF0055" }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = "#333" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p style={{ ...SG, fontSize: "11px", color: "#555", marginTop: "8px" }}>
+                  Change any name or leave as-is.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Launch Button */}
           {chat && (
             <button
@@ -140,7 +272,7 @@ export default function HomePage() {
               className="brutal-button"
               style={{ width: "100%", fontSize: "24px", padding: "20px", marginBottom: "32px" }}
             >
-              LET&apos;S GO →
+              LET&apos;S GO &rarr;
             </button>
           )}
 
@@ -165,8 +297,8 @@ export default function HomePage() {
               lineHeight: 1.5,
               fontWeight: "600",
             }}>
-              Open WhatsApp → Go to Chat Info<br />
-              <span style={{ color: "#FF0055" }}>Export Chat</span> → Select <span style={{ color: "#FF0055" }}>Without Media</span>
+              Open WhatsApp &rarr; Go to Chat Info<br />
+              <span style={{ color: "#FF0055" }}>Export Chat</span> &rarr; Select <span style={{ color: "#FF0055" }}>Without Media</span>
             </p>
           </div>
 

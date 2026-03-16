@@ -21,15 +21,18 @@ const SYSTEM_KEYWORDS = [
   "security code changed",
   "blocked this contact",
   "deleted this message",
-  "<media omitted>",
   "missed voice call",
   "missed video call",
   "this message was deleted",
 ]
 
+// Catch all WhatsApp "<X omitted>" variants (media, image, video, audio, sticker, GIF, document, contact, etc.)
+// Matches with or without angle brackets, any casing.
+const OMITTED_REGEX = /<?(?:media|image|video|audio|sticker|gif|document|contact|file)\s+omitted>?/i
+
 function isSystemMessage(text: string): boolean {
   const lower = text.toLowerCase()
-  return SYSTEM_KEYWORDS.some((kw) => lower.includes(kw))
+  return SYSTEM_KEYWORDS.some((kw) => lower.includes(kw)) || OMITTED_REGEX.test(text)
 }
 
 function parseTimestamp(dateStr: string, timeStr: string): Date {

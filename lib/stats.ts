@@ -8,6 +8,8 @@ const STOPWORDS = new Set([
   "will","from","about","what","know","think","going","want","one","more","also",
   "would","could","should","time","day","then","than","there","so","all","as",
   "by","oh","lol","haha","hahaha","okay","na","la","yah","nah","ah","eh","lah",
+  // WhatsApp export noise words
+  "omitted","media","message","deleted","null","image","video","audio","sticker","gif","document","contact",
 ])
 
 // Regex to match emoji characters (Unicode ranges for common emoji blocks)
@@ -63,6 +65,8 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
   for (const m of messages) {
     const words = m.message
       .toLowerCase()
+      .replace(/<[^>]*>/g, " ")                    // strip <Media omitted> style tokens
+      .replace(/\w+\s+omitted/g, " ")              // strip "media omitted", "image omitted", etc. without brackets
       .replace(/[^a-z0-9\s]/g, "")
       .split(/\s+/)
     for (const w of words) {

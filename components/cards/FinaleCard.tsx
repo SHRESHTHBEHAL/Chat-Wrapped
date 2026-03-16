@@ -39,18 +39,18 @@ function Row({
         justifyContent: "space-between",
         alignItems: "center",
         borderBottom: "1px solid rgba(255,255,255,0.12)",
-        padding: "7px 0",
+        padding: "5px 0",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateX(0)" : "translateX(-16px)",
         transition: `opacity 0.4s ease ${delay}ms, transform 0.4s ease ${delay}ms`,
       }}
     >
-      <span style={{ ...SG, fontWeight: 700, fontSize: "9px", letterSpacing: "0.14em", color: "#888888", textTransform: "uppercase" }}>
+      <span style={{ ...SG, fontWeight: 700, fontSize: "8px", letterSpacing: "0.12em", color: "#888888", textTransform: "uppercase" }}>
         {label}
       </span>
       <span
         className="font-brutal"
-        style={{ fontSize: "15px", color: accent || "#ffffff", maxWidth: "55%", textAlign: "right", lineHeight: 1.1 }}
+        style={{ fontSize: "13px", color: accent || "#ffffff", maxWidth: "55%", textAlign: "right", lineHeight: 1.1 }}
       >
         {value}
       </span>
@@ -109,7 +109,7 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
     <CardShell accentColor="#00FF85" flash={flash}>
       <div
         ref={cardRef}
-        style={{ padding: "24px 20px 20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", overflow: "hidden" }}
+        style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", height: "100%", position: "relative", overflow: "hidden" }}
       >
         {/* Background watermark */}
         <div className="font-brutal" style={{
@@ -133,13 +133,13 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
         <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
 
           {/* Header */}
-          <div style={{ marginBottom: "16px" }}>
+          <div style={{ marginBottom: "10px", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
               <div>
-                <div className="font-brutal" style={{ fontSize: "clamp(30px, 9vw, 42px)", lineHeight: 0.9, color: "#ffffff", textShadow: "3px 3px 0px #00FF85" }}>
+                <div className="font-brutal" style={{ fontSize: "clamp(24px, 7vw, 36px)", lineHeight: 0.9, color: "#ffffff", textShadow: "3px 3px 0px #00FF85" }}>
                   {groupName.toUpperCase()}
                 </div>
-                <div className="font-brutal" style={{ fontSize: "clamp(34px, 10vw, 48px)", lineHeight: 0.9, color: "transparent", WebkitTextStroke: "2px #00FF85" }}>
+                <div className="font-brutal" style={{ fontSize: "clamp(28px, 8vw, 40px)", lineHeight: 0.9, color: "transparent", WebkitTextStroke: "2px #00FF85" }}>
                   WRAPPED
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
                   style={{
                     background: "#00FF85",
                     border: "3px solid #000",
-                    padding: "6px 10px",
+                    padding: "4px 8px",
                     transform: "rotate(3deg)",
                     flexShrink: 0,
                     boxShadow: "3px 3px 0 #fff",
@@ -157,8 +157,8 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
                     transition: "opacity 0.5s ease 200ms",
                   }}
                 >
-                  <div style={{ ...SG, fontWeight: 700, fontSize: "8px", color: "#000", letterSpacing: "0.1em" }}>VIBE</div>
-                  <div className="font-brutal" style={{ fontSize: "14px", color: "#000000", lineHeight: 1 }}>
+                  <div style={{ ...SG, fontWeight: 700, fontSize: "7px", color: "#000", letterSpacing: "0.1em" }}>VIBE</div>
+                  <div className="font-brutal" style={{ fontSize: "12px", color: "#000000", lineHeight: 1 }}>
                     {roasts.vibeCheckLabel}
                   </div>
                 </div>
@@ -166,8 +166,8 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
             </div>
 
             {/* Receipt label */}
-            <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ background: "#fff", color: "#000", ...SG, fontWeight: 700, fontSize: "10px", padding: "3px 10px", border: "2px solid #000" }}>
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px", alignItems: "center" }}>
+              <div style={{ background: "#fff", color: "#000", ...SG, fontWeight: 700, fontSize: "9px", padding: "2px 8px", border: "2px solid #000" }}>
                 FULL RECEIPT
               </div>
               <div style={{ flex: 1, height: "2px", background: "rgba(255,255,255,0.15)" }} />
@@ -175,7 +175,7 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
           </div>
 
           {/* Stats receipt list */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", marginBottom: "14px", paddingRight: "2px" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", marginBottom: "10px", paddingRight: "2px" }}>
             {rows.map((row, i) => (
               <Row
                 key={row.label}
@@ -192,25 +192,26 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
           <div
             style={{
               background: "#ffffff",
-              padding: "12px 14px",
+              padding: "8px 12px",
               border: "3px solid #000",
-              boxShadow: "5px 5px 0px #00FF85",
-              marginBottom: "14px",
+              boxShadow: "4px 4px 0px #00FF85",
+              marginBottom: "10px",
               transform: "rotate(-0.5deg)",
               opacity: visible ? 1 : 0,
               transition: "opacity 0.6s ease 900ms",
+              flexShrink: 0,
             }}
           >
-            <div style={{ ...SG, fontWeight: 700, fontSize: "8px", color: "#888", letterSpacing: "0.15em", marginBottom: "4px" }}>
+            <div style={{ ...SG, fontWeight: 700, fontSize: "7px", color: "#888", letterSpacing: "0.15em", marginBottom: "2px" }}>
               FINAL VERDICT
             </div>
-            <p style={{ color: "#000", ...SG, fontWeight: 700, fontSize: "13px", margin: 0, lineHeight: 1.4 }}>
+            <p style={{ color: "#000", ...SG, fontWeight: 700, fontSize: "11px", margin: 0, lineHeight: 1.3 }}>
               &ldquo;{roasts.finaleRoast}&rdquo;
             </p>
           </div>
 
           {/* Button */}
-          <div style={{ display: "flex" }}>
+          <div style={{ display: "flex", flexShrink: 0 }}>
             <button
               onClick={handleDownload}
               className="brutal-button"

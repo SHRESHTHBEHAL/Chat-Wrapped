@@ -10,27 +10,85 @@ interface Props {
   flash: boolean
 }
 
+const SG: React.CSSProperties = { fontFamily: "'Space Grotesk', sans-serif" }
+
+function formatHour(h: number) {
+  if (h === 0) return "12AM"
+  if (h < 12) return `${h}AM`
+  if (h === 12) return "12PM"
+  return `${h - 12}PM`
+}
+
+function Row({
+  label,
+  value,
+  accent,
+  delay,
+  visible,
+}: {
+  label: string
+  value: string
+  accent?: string
+  delay: number
+  visible: boolean
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderBottom: "1px solid rgba(255,255,255,0.12)",
+        padding: "7px 0",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateX(0)" : "translateX(-16px)",
+        transition: `opacity 0.4s ease ${delay}ms, transform 0.4s ease ${delay}ms`,
+      }}
+    >
+      <span style={{ ...SG, fontWeight: 700, fontSize: "9px", letterSpacing: "0.14em", color: "#888888", textTransform: "uppercase" }}>
+        {label}
+      </span>
+      <span
+        className="font-brutal"
+        style={{ fontSize: "15px", color: accent || "#ffffff", maxWidth: "55%", textAlign: "right", lineHeight: 1.1 }}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
 export default function FinaleCard({ stats, roasts, flash }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const groupName = stats.groupName || "THE GROUP"
-  const formatHour = (h: number) => {
-    if (h === 0) return "12AM"
-    if (h < 12) return `${h}AM`
-    if (h === 12) return "12PM"
-    return `${h - 12}PM`
-  }
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 100)
     return () => clearTimeout(t)
   }, [])
 
-  const statPills = [
-    { label: "TOP TEXTER", value: (stats.topTexter?.name || "---").toUpperCase() },
-    { label: "TOTAL MSGS", value: (stats.totalMessages ?? 0).toLocaleString() },
-    { label: "TOP WORD", value: `"${stats.topWord?.word || "---"}"` },
-    { label: "PEAK HOUR", value: formatHour(stats.peakHour ?? 0) },
+  // ---- build rows from all available stats ----
+  const rows = [
+    { label: "Total messages",    value: (stats.totalMessages ?? 0).toLocaleString() },
+    { label: "Top texter",        value: (stats.topTexter?.name || "---").toUpperCase(), accent: "#00FF85" },
+    { label: "Top texter share",  value: `${stats.topTexter?.percent ?? 0}% of msgs` },
+    { label: "Most used word",    value: `"${stats.topWord?.word || "---"}"` },
+    { label: "Word appearances",  value: `${(stats.topWord?.count ?? 0).toLocaleString()}×` },
+    { label: "Peak hour",         value: formatHour(stats.peakHour ?? 0), accent: "#FFFF00" },
+    { label: "Night messages",    value: (stats.nightMessages ?? 0).toLocaleString() },
+    { label: "Emoji king",        value: `${(stats.emojiKing?.name || "---").toUpperCase()} ${stats.emojiKing?.topEmoji || ""}`, accent: "#FF6B6B" },
+    { label: "Left on read",      value: (stats.leftOnRead?.name || "---").toUpperCase() },
+    { label: "Most dramatic",     value: (stats.mostDramatic?.name || "---").toUpperCase() },
+    { label: "Slow texter",       value: `${(stats.slowTexter?.name || "---").toUpperCase()} (${Math.round(stats.slowTexter?.avgMinutes ?? 0)}m avg)` },
+    { label: "Convo starter",     value: (stats.convoStarter?.name || "---").toUpperCase(), accent: "#00FF85" },
+    { label: "Lurker award",      value: `${(stats.lurker?.name || "---").toUpperCase()} (${stats.lurker?.percent ?? 0}%)` },
+    { label: "Longest streak",    value: `${(stats.longestStreak?.name || "---").toUpperCase()} — ${stats.longestStreak?.days ?? 0} days`, accent: "#00FFFF" },
+    { label: "Longest essay",     value: `${(stats.longestMessage?.name || "---").toUpperCase()} (${(stats.longestMessage?.length ?? 0).toLocaleString()} chars)` },
+    { label: "Morning person",    value: (stats.morningVsNight?.morningPerson?.name || "---").toUpperCase() },
+    { label: "Night gremlin",     value: (stats.morningVsNight?.nightOwlPerson?.name || "---").toUpperCase(), accent: "#9B59F5" },
+    { label: "Best duo",          value: roasts.compatPair || "---", accent: "#FF6B6B" },
+    { label: "Duo compatibility", value: `${roasts.compatScore ?? "?"}/10` },
   ]
 
   async function handleDownload() {
@@ -47,140 +105,118 @@ export default function FinaleCard({ stats, roasts, flash }: Props) {
     }
   }
 
-  function handleShare() {
-    const text = `CHAT WRAPPED 2025 — ${groupName.toUpperCase()}\n\n💬 ${(stats.totalMessages ?? 0).toLocaleString()} total messages\n🏆 Top texter: ${(stats.topTexter?.name || "---").toUpperCase()}\n🔥 Most used word: "${stats.topWord?.word || "---"}"\n\n${roasts.finaleRoast}`
-    navigator.clipboard.writeText(text).catch(() => {})
-  }
-
   return (
     <CardShell accentColor="#00FF85" flash={flash}>
-      <div ref={cardRef} style={{ padding: "32px 24px 24px", display: "flex", flexDirection: "column", height: "100%", position: "relative", overflow: "hidden" }}>
-        
-        {/* Background CHAT Grid */}
+      <div
+        ref={cardRef}
+        style={{ padding: "24px 20px 20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", overflow: "hidden" }}
+      >
+        {/* Background watermark */}
         <div className="font-brutal" style={{
           position: "absolute",
-          inset: "-50px -50px",
+          inset: 0,
           display: "flex",
           flexWrap: "wrap",
           gap: "10px",
           color: "transparent",
-          WebkitTextStroke: "1px rgba(255,255,255,0.05)",
-          fontSize: "60px",
+          WebkitTextStroke: "1px rgba(255,255,255,0.04)",
+          fontSize: "56px",
           lineHeight: 1.1,
           pointerEvents: "none",
-          transform: "rotate(-10deg)",
-          zIndex: 0
+          transform: "rotate(-8deg)",
+          zIndex: 0,
+          overflow: "hidden",
         }}>
-          {Array(100).fill("CHAT").join(" ")}
+          {Array(80).fill("CHAT").join(" ")}
         </div>
 
-        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+
           {/* Header */}
-          <div style={{ borderBottom: "4px solid #ffffff", paddingBottom: "16px", marginBottom: "24px" }}>
-            <div className="font-brutal" style={{
-              fontSize: "clamp(48px, 14vw, 68px)",
-              lineHeight: 0.85,
-              color: "#ffffff",
-              textShadow: "4px 4px 0px #00FF85"
-            }}>
-              THE {groupName.toUpperCase()}
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+              <div>
+                <div className="font-brutal" style={{ fontSize: "clamp(30px, 9vw, 42px)", lineHeight: 0.9, color: "#ffffff", textShadow: "3px 3px 0px #00FF85" }}>
+                  {groupName.toUpperCase()}
+                </div>
+                <div className="font-brutal" style={{ fontSize: "clamp(34px, 10vw, 48px)", lineHeight: 0.9, color: "transparent", WebkitTextStroke: "2px #00FF85" }}>
+                  WRAPPED
+                </div>
+              </div>
+              {/* Vibe badge */}
+              {roasts.vibeCheckLabel && (
+                <div
+                  style={{
+                    background: "#00FF85",
+                    border: "3px solid #000",
+                    padding: "6px 10px",
+                    transform: "rotate(3deg)",
+                    flexShrink: 0,
+                    boxShadow: "3px 3px 0 #fff",
+                    opacity: visible ? 1 : 0,
+                    transition: "opacity 0.5s ease 200ms",
+                  }}
+                >
+                  <div style={{ ...SG, fontWeight: 700, fontSize: "8px", color: "#000", letterSpacing: "0.1em" }}>VIBE</div>
+                  <div className="font-brutal" style={{ fontSize: "14px", color: "#000000", lineHeight: 1 }}>
+                    {roasts.vibeCheckLabel}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="font-brutal" style={{
-              fontSize: "clamp(54px, 16vw, 76px)",
-              lineHeight: 0.9,
-              color: "#transparent",
-              WebkitTextStroke: "2px #00FF85",
-              marginTop: "4px"
-            }}>
-              WRAPPED
-            </div>
-            <div style={{
-              background: "#ffffff",
-              color: "#000",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: "700",
-              fontSize: "12px",
-              padding: "4px 12px",
-              display: "inline-block",
-              marginTop: "16px",
-              border: "2px solid #000000"
-            }}>
-              END OF YEAR RECEIPT
+
+            {/* Receipt label */}
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center" }}>
+              <div style={{ background: "#fff", color: "#000", ...SG, fontWeight: 700, fontSize: "10px", padding: "3px 10px", border: "2px solid #000" }}>
+                FULL RECEIPT
+              </div>
+              <div style={{ flex: 1, height: "2px", background: "rgba(255,255,255,0.15)" }} />
             </div>
           </div>
 
-          {/* Stat Stack */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {statPills.map((pill, i) => (
-              <div
-                key={pill.label}
-                style={{
-                  background: "#000000",
-                  border: "2px solid #ffffff",
-                  padding: "16px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  opacity: visible ? 1 : 0,
-                  transform: visible ? "translateY(0) rotate(1deg)" : "translateY(24px) rotate(0deg)",
-                  transition: `opacity 0.5s ease ${i * 100}ms, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 100}ms`,
-                  boxShadow: "3px 3px 0px #00FF85"
-                }}
-              >
-                <div style={{ color: "#aaaaaa", fontFamily: "'Space Grotesk', sans-serif", fontWeight: "700", fontSize: "10px", letterSpacing: "0.15em" }}>
-                  {pill.label}
-                </div>
-                <div className="font-brutal" style={{
-                  color: "#ffffff",
-                  fontSize: pill.value.length > 10 ? "20px" : "28px",
-                  wordBreak: "break-word",
-                  maxWidth: "60%",
-                  textAlign: "right"
-                }}>
-                  {pill.value}
-                </div>
-              </div>
+          {/* Stats receipt list */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", marginBottom: "14px", paddingRight: "2px" }}>
+            {rows.map((row, i) => (
+              <Row
+                key={row.label}
+                label={row.label}
+                value={row.value}
+                accent={row.accent}
+                delay={i * 45}
+                visible={visible}
+              />
             ))}
           </div>
 
-          <div style={{ flex: 1 }} />
-
-          {/* Finale Roast Box */}
-          <div style={{
-            background: "#ffffff",
-            padding: "16px",
-            border: "4px solid #000000",
-            boxShadow: "6px 6px 0px #00FF85",
-            marginBottom: "24px",
-            transform: "rotate(-1deg)"
-          }}>
-            <p style={{
-              color: "#000000",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: "700",
-              fontSize: "15px",
-              margin: 0,
-              lineHeight: 1.4
-            }}>
+          {/* Finale roast */}
+          <div
+            style={{
+              background: "#ffffff",
+              padding: "12px 14px",
+              border: "3px solid #000",
+              boxShadow: "5px 5px 0px #00FF85",
+              marginBottom: "14px",
+              transform: "rotate(-0.5deg)",
+              opacity: visible ? 1 : 0,
+              transition: "opacity 0.6s ease 900ms",
+            }}
+          >
+            <div style={{ ...SG, fontWeight: 700, fontSize: "8px", color: "#888", letterSpacing: "0.15em", marginBottom: "4px" }}>
+              FINAL VERDICT
+            </div>
+            <p style={{ color: "#000", ...SG, fontWeight: 700, fontSize: "13px", margin: 0, lineHeight: 1.4 }}>
               &ldquo;{roasts.finaleRoast}&rdquo;
             </p>
           </div>
 
-          {/* Action buttons */}
-          <div style={{ display: "flex", gap: "12px", zIndex: 50 }}>
+          {/* Button */}
+          <div style={{ display: "flex" }}>
             <button
               onClick={handleDownload}
               className="brutal-button"
-              style={{ flex: 1, fontSize: "16px" }}
+              style={{ flex: 1, fontSize: "14px", padding: "10px", background: "#00FF85" }}
             >
-              SAVE PNG
-            </button>
-            <button
-              onClick={handleShare}
-              className="brutal-button"
-              style={{ flex: 1, fontSize: "16px", background: "#00FF85" }}
-            >
-              COPY REC
+              SAVE IMAGE
             </button>
           </div>
         </div>

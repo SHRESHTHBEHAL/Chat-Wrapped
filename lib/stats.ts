@@ -10,6 +10,12 @@ const STOPWORDS = new Set([
   "by","oh","lol","haha","hahaha","okay","na","la","yah","nah","ah","eh","lah",
 ])
 
+// Regex to match emoji characters (Unicode ranges for common emoji blocks)
+function extractEmojis(text: string): string[] {
+  const emojiRegex = /[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2764}❤️🤍🖤🤎🤖]+/gu
+  return text.match(emojiRegex) ?? []
+}
+
 export function calculateStats(messages: ParsedMessage[], groupName: string): ChatStats {
   if (!messages.length) {
     return {
@@ -23,6 +29,18 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
       nightMessages: 0,
       leftOnRead: { name: "Unknown", count: 0 },
       mostDramatic: { name: "Unknown", count: 0 },
+      emojiKing: { name: "Unknown", topEmoji: "😂", count: 0 },
+      slowTexter: { name: "Unknown", avgMinutes: 0 },
+      lurker: { name: "Unknown", count: 0, percent: 0 },
+      convoStarter: { name: "Unknown", count: 0 },
+      morningVsNight: {
+        morningPerson: { name: "Unknown", morningCount: 0, total: 0 },
+        nightOwlPerson: { name: "Unknown", nightCount: 0, total: 0 },
+        groupMorningPct: 50,
+        groupNightPct: 50,
+      },
+      longestStreak: { name: "Unknown", days: 0, startDate: "" },
+      longestMessage: { name: "Unknown", length: 0, preview: "", date: "" },
     }
   }
 
@@ -72,28 +90,7 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
   const peakHour = messagesByHour.indexOf(Math.max(...messagesByHour))
   const nightMessages = messagesByHour.slice(0, 5).reduce((a, b) => a + b, 0)
 
-  // Left on read — count how many times each person sent the final message in a streak  
-  // A streak = consecutive messages by same person uninterrupted by others
-  const leftOnReadCounts: Record<string, number> = {}
-  let i = 0
-  while (i < messages.length) {
-    const sender = messages[i].sender
-    let j = i + 1
-    // Find run of same sender
-    while (j < messages.length && messages[j].sender === sender) j++
-    // This person sent multiple in a row (or is just one) — check if someone replied
-    const nextSender = j < messages.length ? messages[j].sender : null
-    if (nextSender && nextSender !== sender) {
-      // They did reply eventually — not left on read … skip
-    } else if (nextSender === null) {
-      // Last in chat — potential left on read
-      if (j - i >= 2) {
-        leftOnReadCounts[sender] = (leftOnReadCounts[sender] || 0) + 1
-      }
-    }
-    i = j
-  }
-  // Re-approach: count streaks where same sender sent 2+ uninterrupted
+  // Left on read — count streaks where same sender sent 2+ uninterrupted
   const streakCounts: Record<string, number> = {}
   let si = 0
   while (si < messages.length) {
@@ -132,6 +129,228 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
     }
   }
 
+  // ===== NEW STATS =====
+
+  // Emoji King — per sender: count all emojis and track which emoji is most used
+  const emojiCountsBySender: Record<string, number> = {}
+  const globalEmojiFreq: Record<string, number> = {}
+  const senderTopEmoji: Record<string, Record<string, number>> = {}
+
+  for (const m of messages) {
+    const emojis = extractEmojis(m.message)
+    for (const emoji of emojis) {
+      emojiCountsBySender[m.sender] = (emojiCountsBySender[m.sender] || 0) + 1
+      globalEmojiFreq[emoji] = (globalEmojiFreq[emoji] || 0) + 1
+      if (!senderTopEmoji[m.sender]) senderTopEmoji[m.sender] = {}
+      senderTopEmoji[m.sender][emoji] = (senderTopEmoji[m.sender][emoji] || 0) + 1
+    }
+  }
+
+  let emojiKingName = members[0] || "Unknown"
+  let emojiKingCount = 0
+  for (const [name, count] of Object.entries(emojiCountsBySender)) {
+    if (count > emojiKingCount) {
+      emojiKingCount = count
+      emojiKingName = name
+    }
+  }
+  // Top emoji for the emoji king
+  const kingEmojiMap = senderTopEmoji[emojiKingName] || {}
+  let kingTopEmoji = "😂"
+  let kingTopEmojiCount = 0
+  for (const [emoji, count] of Object.entries(kingEmojiMap)) {
+    if (count > kingTopEmojiCount) {
+      kingTopEmojiCount = count
+      kingTopEmoji = emoji
+    }
+  }
+
+  // Reply Speed — average gap in minutes between someone's message and the next person's reply
+  const replyGaps: Record<string, number[]> = {}
+  for (let i = 1; i < messages.length; i++) {
+    const prev = messages[i - 1]
+    const curr = messages[i]
+    if (curr.sender !== prev.sender) {
+      const gapMs = curr.timestamp.getTime() - prev.timestamp.getTime()
+      const gapMins = gapMs / 60000
+      // Ignore gaps > 12 hours (they were probably just offline)
+      if (gapMins > 0 && gapMins < 720) {
+        if (!replyGaps[curr.sender]) replyGaps[curr.sender] = []
+        replyGaps[curr.sender].push(gapMins)
+      }
+    }
+  }
+
+  let slowTexterName = members[0] || "Unknown"
+  let slowTexterAvg = 0
+  for (const [name, gaps] of Object.entries(replyGaps)) {
+    if (gaps.length < 3) continue // need at least 3 replies to be meaningful
+    const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length
+    if (avg > slowTexterAvg) {
+      slowTexterAvg = avg
+      slowTexterName = name
+    }
+  }
+
+  // Lurker — lowest message count (% of chat)
+  const lurkerName = members.reduce((a, b) => senderCounts[a] <= senderCounts[b] ? a : b)
+  const lurkerCount = senderCounts[lurkerName]
+  const lurkerPercent = Math.round((lurkerCount / totalMessages) * 100)
+
+  // Conversation Starter — who sends the first message after 60+ min silence
+  const convoStartCounts: Record<string, number> = {}
+  for (let i = 1; i < messages.length; i++) {
+    const gapMs = messages[i].timestamp.getTime() - messages[i - 1].timestamp.getTime()
+    const gapMins = gapMs / 60000
+    if (gapMins >= 60) {
+      const starter = messages[i].sender
+      convoStartCounts[starter] = (convoStartCounts[starter] || 0) + 1
+    }
+  }
+  // First message starts the first convo
+  if (messages[0]) {
+    convoStartCounts[messages[0].sender] = (convoStartCounts[messages[0].sender] || 0) + 1
+  }
+
+  let convoStarterName = members[0] || "Unknown"
+  let convoStarterCount = 0
+  for (const [name, count] of Object.entries(convoStartCounts)) {
+    if (count > convoStarterCount) {
+      convoStarterCount = count
+      convoStarterName = name
+    }
+  }
+
+  // ===== 2025 STATS =====
+
+  // Morning vs Night — morning = 5-11, night = 21-4
+  // Per-sender counts, then find the most morning-skewed and most night-skewed
+  const morningCounts: Record<string, number> = {}
+  const nightCounts: Record<string, number> = {}
+  let groupMorning = 0
+  let groupNight = 0
+
+  for (const m of messages) {
+    const h = m.timestamp.getHours()
+    const isMorning = h >= 5 && h <= 11
+    const isNight = h >= 21 || h <= 4
+    if (isMorning) {
+      morningCounts[m.sender] = (morningCounts[m.sender] || 0) + 1
+      groupMorning++
+    }
+    if (isNight) {
+      nightCounts[m.sender] = (nightCounts[m.sender] || 0) + 1
+      groupNight++
+    }
+  }
+
+  // Best morning person: highest (morningCount / senderTotal) ratio
+  let morningPersonName = members[0] || "Unknown"
+  let morningPersonRatio = -1
+  let morningPersonMorning = 0
+  for (const name of members) {
+    const mc = morningCounts[name] || 0
+    const total = senderCounts[name] || 1
+    const ratio = mc / total
+    if (ratio > morningPersonRatio) {
+      morningPersonRatio = ratio
+      morningPersonName = name
+      morningPersonMorning = mc
+    }
+  }
+
+  // Best night owl: highest (nightCount / senderTotal) ratio
+  let nightOwlPersonName = members[0] || "Unknown"
+  let nightOwlPersonRatio = -1
+  let nightOwlPersonNight = 0
+  for (const name of members) {
+    const nc = nightCounts[name] || 0
+    const total = senderCounts[name] || 1
+    const ratio = nc / total
+    if (ratio > nightOwlPersonRatio) {
+      nightOwlPersonRatio = ratio
+      nightOwlPersonName = name
+      nightOwlPersonNight = nc
+    }
+  }
+
+  const morningNightTotal = groupMorning + groupNight || 1
+  const groupMorningPct = Math.round((groupMorning / morningNightTotal) * 100)
+  const groupNightPct = 100 - groupMorningPct
+
+  // Longest streak — consecutive calendar days where a sender sent at least one message
+  // Build per-sender set of day-strings, then find longest consecutive run
+  const senderDays: Record<string, Set<string>> = {}
+  for (const m of messages) {
+    const d = m.timestamp
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    if (!senderDays[m.sender]) senderDays[m.sender] = new Set()
+    senderDays[m.sender].add(key)
+  }
+
+  function longestConsecutiveDays(daySet: Set<string>): { days: number; startDate: string } {
+    if (!daySet.size) return { days: 0, startDate: "" }
+    // Convert to sorted Date objects
+    const sorted = Array.from(daySet)
+      .map((s) => {
+        const [y, mo, d] = s.split("-").map(Number)
+        return new Date(y, mo, d)
+      })
+      .sort((a, b) => a.getTime() - b.getTime())
+
+    let best = 1
+    let bestStart = sorted[0]
+    let cur = 1
+    let curStart = sorted[0]
+
+    for (let i = 1; i < sorted.length; i++) {
+      const diffMs = sorted[i].getTime() - sorted[i - 1].getTime()
+      const diffDays = Math.round(diffMs / 86400000)
+      if (diffDays === 1) {
+        cur++
+        if (cur > best) {
+          best = cur
+          bestStart = curStart
+        }
+      } else {
+        cur = 1
+        curStart = sorted[i]
+      }
+    }
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    const startStr = `${bestStart.getDate()} ${months[bestStart.getMonth()]} ${bestStart.getFullYear()}`
+    return { days: best, startDate: startStr }
+  }
+
+  let longestStreakName = members[0] || "Unknown"
+  let longestStreakDays = 0
+  let longestStreakStart = ""
+  for (const name of members) {
+    const result = longestConsecutiveDays(senderDays[name] || new Set())
+    if (result.days > longestStreakDays) {
+      longestStreakDays = result.days
+      longestStreakName = name
+      longestStreakStart = result.startDate
+    }
+  }
+
+  // Longest message — find the single message with the most characters (skip media/system)
+  let longestMsgSender = members[0] || "Unknown"
+  let longestMsgLength = 0
+  let longestMsgPreview = ""
+  let longestMsgDate = ""
+  for (const m of messages) {
+    if (m.message.length > longestMsgLength) {
+      longestMsgLength = m.message.length
+      longestMsgSender = m.sender
+      // Truncate preview to 120 chars
+      longestMsgPreview = m.message.length > 120 ? m.message.slice(0, 120) + "…" : m.message
+      const d = m.timestamp
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+      longestMsgDate = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
+    }
+  }
+
   return {
     groupName,
     totalMessages,
@@ -143,5 +362,17 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
     nightMessages,
     leftOnRead: { name: leftOnReadName, count: leftOnReadCount },
     mostDramatic: { name: mostDramaticName, count: mostDramaticCount },
+    emojiKing: { name: emojiKingName, topEmoji: kingTopEmoji, count: emojiKingCount },
+    slowTexter: { name: slowTexterName, avgMinutes: Math.round(slowTexterAvg) },
+    lurker: { name: lurkerName, count: lurkerCount, percent: lurkerPercent },
+    convoStarter: { name: convoStarterName, count: convoStarterCount },
+    morningVsNight: {
+      morningPerson: { name: morningPersonName, morningCount: morningPersonMorning, total: senderCounts[morningPersonName] || 0 },
+      nightOwlPerson: { name: nightOwlPersonName, nightCount: nightOwlPersonNight, total: senderCounts[nightOwlPersonName] || 0 },
+      groupMorningPct,
+      groupNightPct,
+    },
+    longestStreak: { name: longestStreakName, days: longestStreakDays, startDate: longestStreakStart },
+    longestMessage: { name: longestMsgSender, length: longestMsgLength, preview: longestMsgPreview, date: longestMsgDate },
   }
 }

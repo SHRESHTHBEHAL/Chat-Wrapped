@@ -49,6 +49,26 @@ function parseTimestamp(dateStr: string, timeStr: string): Date {
   return new Date(fullYear, month - 1, day, parts[0], parts[1], parts[2] ?? 0)
 }
 
+// Try to extract the group name from WhatsApp system messages inside the file.
+// WhatsApp writes lines like:
+//   [12/03/2025, 09:14:22] Jake created group "My Squad"
+//   12/03/2025, 09:14 - Jake created group "My Squad"
+// Returns null if nothing found.
+export function extractGroupName(text: string): string | null {
+  const match = text.match(/created group[^\n"]*"([^"]+)"/i)
+  if (match) return match[1].trim()
+  // Some locales use different quotes or no quotes — try without
+  const matchPlain = text.match(/created group[^\n]*[-–]\s*(.+)/i)
+  if (matchPlain) {
+    const candidate = matchPlain[1].trim()
+    // sanity check: shouldn't be a timestamp or URL
+    if (candidate.length > 0 && candidate.length < 80 && !candidate.includes("/")) {
+      return candidate
+    }
+  }
+  return null
+}
+
 export function parseChat(text: string): ParsedMessage[] {
   const lines = text.split("\n")
   const messages: ParsedMessage[] = []

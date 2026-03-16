@@ -3,45 +3,41 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import UploadZone from "@/components/UploadZone"
-import { parseChat } from "@/lib/parser"
+import { parseChat, extractGroupName } from "@/lib/parser"
 import { calculateStats } from "@/lib/stats"
+import { ChatStats } from "@/lib/types"
 
 export default function HomePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [statusText, setStatusText] = useState("")
+  const [chat, setChat] = useState<{ file: File; stats: ChatStats } | null>(null)
+
+  const processFile = useCallback(async (file: File): Promise<ChatStats | null> => {
+    const text = await file.text()
+    const fileBaseName = file.name.replace(/\.txt$/i, "").replace(/WhatsApp Chat with /i, "").trim()
+    const isGeneric = /^(chat|export|whatsapp|backup|messages?)$/i.test(fileBaseName)
+    const rawName = isGeneric ? (extractGroupName(text) ?? fileBaseName) : fileBaseName
+    const groupName = rawName || "THE GROUP"
+    const messages = parseChat(text)
+    if (messages.length === 0) {
+      alert("Couldn't find any messages in this file.")
+      return null
+    }
+    return calculateStats(messages, groupName)
+  }, [])
 
   const handleFile = useCallback(async (file: File) => {
+    const stats = await processFile(file)
+    if (stats) setChat({ file, stats })
+  }, [processFile])
+
+  const handleLaunch = useCallback(async () => {
+    if (!chat) return
     setLoading(true)
-    setStatusText("READING YOUR MESSAGES...")
-
-    try {
-      const text = await file.text()
-
-      // Extract group name from filename
-      const rawName = file.name.replace(/\.txt$/i, "").replace(/WhatsApp Chat with /i, "").trim()
-      const groupName = rawName || "THE GROUP"
-
-      setStatusText("PARSING THE CHAOS...")
-      const messages = parseChat(text)
-
-      if (messages.length === 0) {
-        alert("Couldn't find any messages. Make sure this is a WhatsApp .txt export.")
-        setLoading(false)
-        return
-      }
-
-      setStatusText("CRUNCHING NUMBERS...")
-      const stats = calculateStats(messages, groupName)
-
-      sessionStorage.setItem("chatStats", JSON.stringify(stats))
-      router.push("/wrapped")
-    } catch (err) {
-      console.error(err)
-      alert("Something went wrong reading this file. Try again.")
-      setLoading(false)
-    }
-  }, [router])
+    sessionStorage.setItem("chatStats", JSON.stringify(chat.stats))
+    sessionStorage.removeItem("chatStats2")
+    router.push("/wrapped")
+  }, [chat, router])
 
   return (
     <main className="bg-grid" style={{
@@ -67,10 +63,9 @@ export default function HomePage() {
             fontSize: "clamp(32px, 8vw, 60px)",
             letterSpacing: "0.05em",
             marginBottom: "24px",
-            animation: "blink 1.2s ease-in-out infinite",
             textShadow: "4px 4px 0px #000"
           }}>
-            {statusText}
+            WRAPPING IT UP...
           </div>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             {[0, 1, 2].map((i) => (
@@ -84,12 +79,10 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <div style={{ width: "100%", maxWidth: "500px", zIndex: 10 }}>
+        <div style={{ width: "100%", maxWidth: "520px", zIndex: 10 }}>
           {/* Logo */}
           <div style={{ marginBottom: "40px", textAlign: "center", position: "relative" }}>
-            
             <div style={{ position: "absolute", inset: "-40px -20px", background: "#FF0055", zIndex: -1, border: "4px solid #fff", boxShadow: "10px 10px 0px #000", transform: "rotate(-2deg)" }} />
-
             <h1 className="font-brutal" style={{
               fontSize: "clamp(50px, 16vw, 100px)",
               color: "#ffffff",
@@ -106,7 +99,6 @@ export default function HomePage() {
               fontWeight: "700",
               fontSize: "16px",
               marginTop: "16px",
-              letterSpacing: "0.02em",
               background: "#fff",
               display: "inline-block",
               padding: "4px 12px",
@@ -117,18 +109,43 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div style={{ 
-            background: "#fff", 
-            border: "4px solid #000",
-            boxShadow: "10px 10px 0px #FF0055",
-            transform: "rotate(1deg)",
-            padding: "8px"
-          }}>
-            <UploadZone onFile={handleFile} loading={loading} />
+          {/* Upload */}
+          <div style={{ marginBottom: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <div className="font-brutal" style={{ color: "#ffffff", fontSize: "14px", letterSpacing: "0.15em" }}>
+                YOUR CHAT
+              </div>
+              {chat && (
+                <div style={{ background: "#00FF85", color: "#000", fontFamily: "'Space Grotesk', sans-serif", fontWeight: "700", fontSize: "11px", padding: "3px 10px", border: "2px solid #000" }}>
+                  ✓ {chat.stats.groupName.toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div style={{
+              background: "#fff",
+              border: "4px solid #000",
+              boxShadow: chat ? "10px 10px 0px #00FF85" : "10px 10px 0px #FF0055",
+              transform: "rotate(1deg)",
+              padding: "8px",
+              transition: "box-shadow 0.3s"
+            }}>
+              <UploadZone onFile={handleFile} loading={false} />
+            </div>
           </div>
 
+          {/* Launch Button */}
+          {chat && (
+            <button
+              onClick={handleLaunch}
+              className="brutal-button"
+              style={{ width: "100%", fontSize: "24px", padding: "20px", marginBottom: "32px" }}
+            >
+              LET&apos;S GO →
+            </button>
+          )}
+
+          {/* Export instructions */}
           <div style={{
-            marginTop: "32px",
             background: "#111",
             border: "2px solid #333",
             padding: "16px",
@@ -166,10 +183,6 @@ export default function HomePage() {
       )}
 
       <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-15px); }

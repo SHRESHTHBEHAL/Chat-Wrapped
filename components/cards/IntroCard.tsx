@@ -14,8 +14,8 @@ export default function IntroCard({ stats, roasts, flash }: Props) {
     <CardShell accentColor="#FF0055" flash={flash}>
       <div style={{ padding: "32px 24px 24px", display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
         
-        {/* Top bar with group name */}
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "32px", zIndex: 10 }}>
+        {/* Top bar with group name + vibe badge */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "32px", zIndex: 10, flexWrap: "wrap" }}>
           <div style={{
             background: "#ffffff",
             color: "#000000",
@@ -30,6 +30,22 @@ export default function IntroCard({ stats, roasts, flash }: Props) {
           }}>
             {(stats.groupName || "THE GROUP")}
           </div>
+          {roasts.vibeCheckLabel && (
+            <div style={{
+              background: "#FF0055",
+              color: "#ffffff",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: "700",
+              fontSize: "11px",
+              letterSpacing: "0.1em",
+              padding: "4px 10px",
+              border: "2px solid #ffffff",
+              boxShadow: "3px 3px 0px #000000",
+              transform: "rotate(2deg)",
+            }}>
+              {roasts.vibeCheckLabel}
+            </div>
+          )}
         </div>
 
         {/* Huge angled title */}

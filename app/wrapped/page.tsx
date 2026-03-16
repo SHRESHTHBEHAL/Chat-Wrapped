@@ -12,8 +12,16 @@ import NightOwl from "@/components/cards/NightOwl"
 import LeftOnRead from "@/components/cards/LeftOnRead"
 import MostDramatic from "@/components/cards/MostDramatic"
 import FinaleCard from "@/components/cards/FinaleCard"
+import EmojiKing from "@/components/cards/EmojiKing"
+import SlowTexter from "@/components/cards/SlowTexter"
+import Lurker from "@/components/cards/Lurker"
+import ConvoStarter from "@/components/cards/ConvoStarter"
+import CompatibilityCard from "@/components/cards/CompatibilityCard"
+import MorningVsNight from "@/components/cards/MorningVsNight"
+import LongestStreak from "@/components/cards/LongestStreak"
+import LongestMessage from "@/components/cards/LongestMessage"
 
-const TOTAL_CARDS = 8
+const TOTAL_CARDS = 16
 
 const FALLBACK_ROASTS: Roasts = {
   introTagline: "you people never stop yapping",
@@ -24,15 +32,54 @@ const FALLBACK_ROASTS: Roasts = {
   leftOnReadRoast: "chronic ghoster, no remorse",
   dramaticRoast: "shakespearean levels of unhinged",
   finaleRoast: "touch grass. immediately.",
+  emojiKingRoast: "grew up speaking emoji",
+  slowTexterRoast: "replies faster than a glacier moves",
+  lurkerRoast: "witnesses everything, contributes nothing",
+  convoStarterRoast: "desperately filling the silence since forever",
+  morningVsNightRoast: "some of you have never seen a sunrise",
+  longestStreakRoast: "parasocial relationship with a group chat",
+  longestMessageRoast: "essays in whatsapp. unhinged.",
+  vibeCheckLabel: "UNHINGED",
+  vibeCheckCaption: "no further explanation needed",
+  compatPair: "Unknown & Unknown",
+  compatScore: 7,
+  compatReason: "mutually chaotic, oddly enough it works",
+  compatWorstPair: "Unknown & Unknown",
+}
+
+type ChatSession = { stats: ChatStats; roasts: Roasts }
+
+function buildCards(stats: ChatStats, roasts: Roasts) {
+  const props = { stats, roasts, flash: false }
+  return [
+    <IntroCard key="intro" {...props} />,
+    <TotalMessages key="total" {...props} />,
+    <TopTexter key="top" {...props} />,
+    <MostUsedWord key="word" {...props} />,
+    <EmojiKing key="emoji" {...props} />,
+    <NightOwl key="night" {...props} />,
+    <MorningVsNight key="morning" {...props} />,
+    <LeftOnRead key="lor" {...props} />,
+    <MostDramatic key="drama" {...props} />,
+    <SlowTexter key="slow" {...props} />,
+    <Lurker key="lurker" {...props} />,
+    <ConvoStarter key="convo" {...props} />,
+    <LongestStreak key="streak" {...props} />,
+    <LongestMessage key="longmsg" {...props} />,
+    <CompatibilityCard key="compat" roasts={roasts} flash={false} />,
+    <FinaleCard key="finale" {...props} />,
+  ]
 }
 
 export default function WrappedPage() {
   const router = useRouter()
-  const [stats, setStats] = useState<ChatStats | null>(null)
-  const [roasts, setRoasts] = useState<Roasts | null>(null)
+
+  const [session, setSession] = useState<ChatSession | null>(null)
   const [loading, setLoading] = useState(true)
+
   const [currentCard, setCurrentCard] = useState(0)
-  const [flash, setFlash] = useState(false)
+  const [animDir, setAnimDir] = useState<"left" | "right" | null>(null)
+  const [animating, setAnimating] = useState(false)
   const touchStartX = useRef<number | null>(null)
   const dots = useRef(0)
   const [dotStr, setDotStr] = useState("")
@@ -46,51 +93,48 @@ export default function WrappedPage() {
     return () => clearInterval(id)
   }, [])
 
-  // Load stats from sessionStorage
+  // Load stats from sessionStorage and fetch roasts
   useEffect(() => {
     const raw = sessionStorage.getItem("chatStats")
     if (!raw) {
       router.replace("/")
       return
     }
-    const parsed: ChatStats = JSON.parse(raw)
-    setStats(parsed)
 
-    // Fetch roasts
+    const stats: ChatStats = JSON.parse(raw)
+
     fetch("/api/roast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(parsed),
+      body: JSON.stringify(stats),
     })
       .then((r) => r.json())
-      .then((data: Roasts) => {
-        setRoasts(data)
-        setLoading(false)
-      })
-      .catch(() => {
-        setRoasts(FALLBACK_ROASTS)
+      .catch(() => FALLBACK_ROASTS)
+      .then((roasts: Roasts) => {
+        setSession({ stats, roasts })
         setLoading(false)
       })
   }, [router])
 
-  const triggerFlash = useCallback(() => {
-    setFlash(true)
-    setTimeout(() => setFlash(false), 120)
-  }, [])
+  // Navigate with smooth animation
+  const navigate = useCallback((dir: "left" | "right") => {
+    if (animating) return
+    if (!session) return
+    const total = TOTAL_CARDS
+    if (dir === "right" && currentCard >= total - 1) return
+    if (dir === "left" && currentCard <= 0) return
 
-  const goNext = useCallback(() => {
-    if (currentCard < TOTAL_CARDS - 1) {
-      triggerFlash()
-      setTimeout(() => setCurrentCard((c) => c + 1), 20)
-    }
-  }, [currentCard, triggerFlash])
+    setAnimDir(dir)
+    setAnimating(true)
+    setTimeout(() => {
+      setCurrentCard((c) => (dir === "right" ? c + 1 : c - 1))
+      setAnimDir(null)
+      setTimeout(() => setAnimating(false), 50)
+    }, 280)
+  }, [animating, currentCard, session])
 
-  const goPrev = useCallback(() => {
-    if (currentCard > 0) {
-      triggerFlash()
-      setTimeout(() => setCurrentCard((c) => c - 1), 20)
-    }
-  }, [currentCard, triggerFlash])
+  const goNext = useCallback(() => navigate("right"), [navigate])
+  const goPrev = useCallback(() => navigate("left"), [navigate])
 
   // Keyboard navigation
   useEffect(() => {
@@ -115,13 +159,12 @@ export default function WrappedPage() {
     touchStartX.current = null
   }
 
-  // Click navigation — left 33% = prev, right 66% = next
   function handleClick(e: React.MouseEvent) {
     const x = e.clientX / window.innerWidth
     if (x < 0.33) { goPrev() } else { goNext() }
   }
 
-  if (loading || !stats || !roasts) {
+  if (loading || !session) {
     return (
       <div className="bg-grid" style={{
         minHeight: "100vh",
@@ -169,18 +212,11 @@ export default function WrappedPage() {
     )
   }
 
-  const cardProps = { stats, roasts, flash }
+  const cards = buildCards(session.stats, session.roasts)
 
-  const cards = [
-    <IntroCard key="intro" {...cardProps} />,
-    <TotalMessages key="total" {...cardProps} />,
-    <TopTexter key="top" {...cardProps} />,
-    <MostUsedWord key="word" {...cardProps} />,
-    <NightOwl key="night" {...cardProps} />,
-    <LeftOnRead key="lor" {...cardProps} />,
-    <MostDramatic key="drama" {...cardProps} />,
-    <FinaleCard key="finale" {...cardProps} />,
-  ]
+  // Animation classes
+  const outClass = animDir === "right" ? "card-exit-left" : "card-exit-right"
+  const inClass = animDir === "right" ? "card-enter-right" : "card-enter-left"
 
   return (
     <div
@@ -200,7 +236,48 @@ export default function WrappedPage() {
       onTouchEnd={handleTouchEnd}
     >
       <ProgressBar total={TOTAL_CARDS} current={currentCard} />
-      {cards[currentCard]}
+
+      {/* Animated card wrapper */}
+      <div
+        key={currentCard}
+        className={animating && animDir ? outClass : inClass}
+        style={{ width: "100%", display: "flex", justifyContent: "center" }}
+      >
+        {cards[currentCard]}
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(60%) scale(0.95); opacity: 0; }
+          to   { transform: translateX(0)   scale(1);    opacity: 1; }
+        }
+        @keyframes slideInLeft {
+          from { transform: translateX(-60%) scale(0.95); opacity: 0; }
+          to   { transform: translateX(0)    scale(1);    opacity: 1; }
+        }
+        @keyframes slideOutLeft {
+          from { transform: translateX(0)    scale(1);    opacity: 1; }
+          to   { transform: translateX(-60%) scale(0.95); opacity: 0; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0)   scale(1);    opacity: 1; }
+          to   { transform: translateX(60%) scale(0.95); opacity: 0; }
+        }
+        .card-enter-right {
+          animation: slideInRight 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        .card-enter-left {
+          animation: slideInLeft 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        .card-exit-left {
+          animation: slideOutLeft 0.28s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+          pointer-events: none;
+        }
+        .card-exit-right {
+          animation: slideOutRight 0.28s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+          pointer-events: none;
+        }
+      `}</style>
     </div>
   )
 }

@@ -303,6 +303,29 @@ export default function HomePage() {
             </p>
           </div>
 
+          {/* Privacy note */}
+          <div style={{
+            marginTop: "12px",
+            background: "#0a0a0a",
+            border: "2px solid #222",
+            padding: "10px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}>
+            <span style={{ fontSize: "16px" }}>🔒</span>
+            <p style={{
+              color: "#555",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: "12px",
+              fontWeight: "600",
+              margin: 0,
+              lineHeight: 1.4,
+            }}>
+              Your messages never leave your browser. Only aggregated stats (counts, names) are sent to generate roasts — no message content, ever.
+            </p>
+          </div>
+
           <div style={{ marginTop: "48px", textAlign: "center" }}>
             <p className="font-brutal" style={{
               color: "#333",

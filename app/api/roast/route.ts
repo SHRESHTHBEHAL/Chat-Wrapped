@@ -34,7 +34,12 @@ export async function POST(req: Request) {
   let fallbackWorstPair = "Unknown & Unknown"
 
   try {
-    stats = await req.json()
+    const body = await req.json()
+    // Strip longestMessage.preview so no actual message content hits this server
+    if (body?.longestMessage?.preview !== undefined) {
+      body.longestMessage = { ...body.longestMessage, preview: "" }
+    }
+    stats = body as ChatStats
   } catch {
     console.error("Roast API: failed to parse request body")
     return NextResponse.json(FALLBACK_ROASTS)

@@ -54,7 +54,7 @@ export default function CompatibilityCard({ roasts, flash }: Props) {
             marginBottom: "32px",
             transform: "rotate(-1deg)"
           }}>
-            🤖 GEMINI COMPATIBILITY REPORT
+            🤖 COMPATIBILITY REPORT
           </div>
 
           {/* Best pair */}

@@ -1,5 +1,8 @@
 import { ParsedMessage, ChatStats } from "./types"
 
+// Catch all WhatsApp "<X omitted>" variants
+const OMITTED_REGEX = /<?(?:media|image|video|audio|sticker|gif|document|contact|file)\s+omitted>?/i
+
 const STOPWORDS = new Set([
   "the","a","is","to","and","i","you","it","in","of","that","was","for","on",
   "are","at","be","this","with","but","not","have","had","they","he","she","we",
@@ -348,16 +351,26 @@ export function calculateStats(messages: ParsedMessage[], groupName: string): Ch
   }
 
   // Longest message — find the single message with the most characters (skip media/system)
+  // Strip any embedded timestamps from continuation lines that leaked into the message text.
+  // WhatsApp continuation lines sometimes include "[DD/MM/YY, HH:MM:SS] Name:" patterns.
+  const TIMESTAMP_LEAK_REGEX = /\[?\d{1,2}\/\d{1,2}\/\d{2,4},?\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\]?\s*[^:]*:\s*/gi
+
   let longestMsgSender = members[0] || "Unknown"
   let longestMsgLength = 0
   let longestMsgPreview = ""
   let longestMsgDate = ""
   for (const m of messages) {
-    if (m.message.length > longestMsgLength) {
-      longestMsgLength = m.message.length
+    // Clean the message: remove embedded timestamps/sender prefixes that leaked from continuation lines
+    const cleaned = m.message.replace(TIMESTAMP_LEAK_REGEX, " ").replace(/\s{2,}/g, " ").trim()
+    // Also skip messages that are essentially empty after cleaning, or are just omitted media
+    if (cleaned.length < 2) continue
+    if (OMITTED_REGEX.test(cleaned)) continue
+
+    if (cleaned.length > longestMsgLength) {
+      longestMsgLength = cleaned.length
       longestMsgSender = m.sender
       // Truncate preview to 120 chars
-      longestMsgPreview = m.message.length > 120 ? m.message.slice(0, 120) + "…" : m.message
+      longestMsgPreview = cleaned.length > 120 ? cleaned.slice(0, 120) + "…" : cleaned
       const d = m.timestamp
       const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
       longestMsgDate = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`

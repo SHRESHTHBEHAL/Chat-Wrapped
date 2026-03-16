@@ -53,7 +53,7 @@ export default function CardShell({ children, accentColor = "#FF0055", flash = f
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {children}
       </div>
 

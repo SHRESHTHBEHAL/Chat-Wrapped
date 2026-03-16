@@ -36,7 +36,6 @@ function isSystemMessage(text: string): boolean {
 }
 
 function parseTimestamp(dateStr: string, timeStr: string): Date {
-  // Normalise AM/PM just in case
   const [day, month, year] = dateStr.split("/").map(Number)
   const fullYear = year < 100 ? 2000 + year : year
 
@@ -44,8 +43,17 @@ function parseTimestamp(dateStr: string, timeStr: string): Date {
   const is12h = /am|pm/i.test(timeCleaned)
 
   if (is12h) {
-    const combined = `${fullYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")} ${timeCleaned}`
-    return new Date(combined)
+    // Manually parse 12h time: "9:14:22 AM" or "11:30 PM" etc.
+    const isPM = /pm/i.test(timeCleaned)
+    const numericPart = timeCleaned.replace(/\s*(am|pm)\s*/i, "")
+    const parts = numericPart.split(":").map(Number)
+    let hours = parts[0]
+    const minutes = parts[1] ?? 0
+    const seconds = parts[2] ?? 0
+    // Convert 12h → 24h
+    if (hours === 12) hours = isPM ? 12 : 0
+    else if (isPM) hours += 12
+    return new Date(fullYear, month - 1, day, hours, minutes, seconds)
   }
 
   const parts = timeCleaned.split(":").map(Number)
